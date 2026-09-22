@@ -1,0 +1,31 @@
+{
+  "name": "remixforge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "RemixForge \u2014 AI multi-track remix & stem studio in the browser",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "verify:codecs": "node --experimental-strip-types scripts/verify-codecs.mjs",
+    "verify:analysis": "node --experimental-strip-types scripts/verify-analysis.mjs",
+    "verify": "npm run verify:codecs && npm run verify:analysis"
+  },
+  "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "idb": "^8.0.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@wasm-audio-decoders/flac": "^0.2.11",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}

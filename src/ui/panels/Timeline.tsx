@@ -6,9 +6,10 @@ import { snapTime } from '../../remix/sync.ts';
 import type { Clip, Project, Track } from '../../state/types.ts';
 import { Waveform } from '../components/Waveform.tsx';
 import { formatBars, formatTime } from '../components/primitives.tsx';
+import { Icon } from '../components/Icon.tsx';
 import { useTransport } from '../hooks.ts';
 
-const HEAD_WIDTH = 168;
+const HEAD_WIDTH = 176;
 const MIN_ZOOM = 4;
 const MAX_ZOOM = 400;
 
@@ -52,57 +53,82 @@ export function Timeline({ project, selection, onSelect, selectedTrackId, onSele
     <div className="timeline">
       <div className="toolbar">
         <button
-          className="ghost"
+          className="ghost icon"
           onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z / 1.5))}
           title="Zoom out"
+          aria-label="Zoom out"
         >
-          –
+          <Icon name="zoomOut" size={15} />
         </button>
         <button
-          className="ghost"
+          className="ghost icon"
           onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z * 1.5))}
           title="Zoom in"
+          aria-label="Zoom in"
         >
-          +
+          <Icon name="zoomIn" size={15} />
         </button>
-        <span className="hint mono">{zoom.toFixed(0)} px/s</span>
+        <span className="hint mono" style={{ minWidth: 46 }}>
+          {zoom.toFixed(0)} px/s
+        </span>
 
-        <span style={{ width: 12 }} />
-        <span className="hint">Snap</span>
+        <span className="divider" />
+
+        <Icon name="magnet" size={14} style={{ color: 'var(--text-3)' }} />
         <select
           value={project.snap}
           onChange={(e) => actions.setSnap(e.target.value as Project['snap'])}
           aria-label="Snap mode"
+          title="Snap clips to the grid"
         >
           <option value="bar">Bar</option>
           <option value="beat">Beat</option>
-          <option value="off">Off</option>
+          <option value="off">Free</option>
         </select>
 
-        <span style={{ width: 12 }} />
-        <button onClick={splitAtPlayhead} disabled={project.clips.length === 0} title="Split every clip under the playhead (S)">
+        <span className="divider" />
+
+        <button
+          onClick={splitAtPlayhead}
+          disabled={project.clips.length === 0}
+          title="Split every clip under the playhead — S"
+        >
+          <Icon name="split" size={14} />
           Split
         </button>
         <button
           onClick={() => selection.forEach((id) => actions.duplicateClip(id))}
           disabled={selection.length === 0}
+          title="Duplicate selection — ⌘D"
         >
+          <Icon name="copy" size={14} />
           Duplicate
         </button>
         <button
-          className="danger"
+          className="danger icon"
           onClick={() => {
             actions.removeClips(selection);
             onSelect([]);
           }}
           disabled={selection.length === 0}
+          title="Delete selection"
+          aria-label="Delete selection"
         >
-          Delete
+          <Icon name="trash" size={14} />
         </button>
 
         <span className="grow" />
-        <button onClick={() => actions.addTrack({ name: `Track ${project.tracks.length + 1}` })}>
-          Add track
+        {selection.length > 0 && (
+          <span className="hint mono">
+            {selection.length} selected
+          </span>
+        )}
+        <button
+          onClick={() => actions.addTrack({ name: `Track ${project.tracks.length + 1}` })}
+          title="Add an empty track"
+        >
+          <Icon name="plus" size={14} />
+          Track
         </button>
       </div>
 
@@ -118,10 +144,17 @@ export function Timeline({ project, selection, onSelect, selectedTrackId, onSele
           />
 
           {project.tracks.length === 0 && (
-            <div style={{ padding: 28 }}>
-              <div className="empty">
-                No tracks yet. Import a song, separate it, then press <strong>Use</strong> on a stem —
-                or open Quick Remix for the guided route.
+            <div style={{ padding: 40, maxWidth: 440 }}>
+              <div className="empty" style={{ padding: '26px 20px' }}>
+                <Icon
+                  name="layers"
+                  size={26}
+                  weight={1.3}
+                  style={{ color: 'var(--text-3)', margin: '0 auto 10px' }}
+                />
+                <div style={{ color: 'var(--text-2)', marginBottom: 4 }}>Nothing on the timeline</div>
+                Import a song, separate it, then press <strong>Use</strong> on a stem — or open Quick
+                Remix for the guided route.
               </div>
             </div>
           )}
@@ -199,19 +232,10 @@ function Ruler({
         {marks.map((m) => (
           <div
             key={`${m.time}-${m.label}`}
-            style={{
-              position: 'absolute',
-              left: m.time * zoom,
-              top: m.major ? 0 : 16,
-              bottom: 0,
-              borderLeft: `1px solid var(${m.major ? '--line-strong' : '--line'})`,
-              paddingLeft: 3,
-              fontSize: 10,
-              color: 'var(--text-faint)',
-              pointerEvents: 'none',
-            }}
+            className={`tick ${m.major ? 'major' : ''}`}
+            style={{ left: m.time * zoom, top: m.major ? 0 : 18 }}
           >
-            {m.label}
+            {m.label && <span>{m.label}</span>}
           </div>
         ))}
 
@@ -233,21 +257,15 @@ function Ruler({
             return (
               <div
                 key={section.id}
+                className="section"
                 title={`${section.label} · ${section.bars} bars · energy ${Math.round(section.energy * 100)}%`}
                 style={{
-                  position: 'absolute',
                   left: Math.max(0, left),
                   width: Math.max(8, w),
-                  bottom: 0,
-                  height: 12,
-                  fontSize: 9,
-                  paddingLeft: 3,
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  color: 'var(--text-dim)',
-                  background: `hsl(${source.hue} 50% 30% / 0.55)`,
-                  borderLeft: `1px solid hsl(${source.hue} 60% 55%)`,
-                  pointerEvents: 'none',
+                  // Energy drives lightness, so the arrangement's shape is
+                  // legible from the section strip alone.
+                  background: `hsl(${source.hue} 42% ${16 + section.energy * 16}%)`,
+                  borderLeftColor: `hsl(${source.hue} 62% 58%)`,
                 }}
               >
                 {section.label}
@@ -283,20 +301,11 @@ function TrackRow({
   return (
     <div className="tl-row" style={{ height: track.height }}>
       <div
-        className="tl-head"
-        style={selected ? { boxShadow: 'inset 2px 0 0 var(--accent)' } : undefined}
+        className={`tl-head ${selected ? 'sel' : ''}`}
         onPointerDown={() => onSelectTrack(track.id)}
       >
         <div className="title">
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 2,
-              background: `hsl(${track.hue} 70% 55%)`,
-              flex: 'none',
-            }}
-          />
+          <span className="chip" style={{ background: `hsl(${track.hue} 68% 54%)` }} />
           <span className="truncate">{track.name}</span>
         </div>
         <div className="mini">
@@ -311,7 +320,7 @@ function TrackRow({
             M
           </button>
           <button
-            className={track.solo ? 'active' : ''}
+            className={`solo ${track.solo ? 'active' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
               actions.toggleSolo(track.id);
@@ -322,21 +331,29 @@ function TrackRow({
           </button>
           <span className="grow" />
           <button
-            className="ghost"
+            className="ghost icon"
+            style={{ width: 18, height: 18 }}
             onClick={(e) => {
               e.stopPropagation();
               actions.removeTrack(track.id);
             }}
             title="Remove track"
+            aria-label={`Remove ${track.name}`}
           >
-            ✕
+            <Icon name="close" size={11} />
           </button>
         </div>
       </div>
 
       <div
         className="tl-lane"
-        style={{ width }}
+        style={
+          {
+            width,
+            '--bar-w': `${(60 / project.bpm) * project.meter * zoom}px`,
+            '--beat-w': `${(60 / project.bpm) * zoom}px`,
+          } as React.CSSProperties
+        }
         onPointerDown={(e) => {
           if (e.target === e.currentTarget) onSelect([]);
         }}
@@ -469,8 +486,9 @@ function ClipView({
         />
       </div>
       <div className="label">
-        {clip.name}
-        {warped ? ' ·  ⟲' : ''}
+        {warped && <Icon name="align" size={9} weight={2.2} style={{ opacity: 0.8 }} />}
+        {clip.tapeStop ? <Icon name="arrowDown" size={9} weight={2.2} style={{ opacity: 0.8 }} /> : null}
+        <span className="truncate">{clip.name}</span>
       </div>
       <div className="handle l" onPointerDown={beginTrim('l')} />
       <div className="handle r" onPointerDown={beginTrim('r')} />

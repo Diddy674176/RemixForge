@@ -17,7 +17,8 @@ import type {
   Project,
   Track,
 } from '../../state/types.ts';
-import { Meter, Slider, Spinner, gainToDb, notify } from '../components/primitives.tsx';
+import { Meter, MiniSlider, Slider, Spinner, gainToDb, notify } from '../components/primitives.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 type Tab = 'mix' | 'clip' | 'fx' | 'auto' | 'master';
 
@@ -103,7 +104,8 @@ function MixTab({
           }}
           title="Set levels, carve space for the vocal and leave headroom"
         >
-          AI mix
+          <Icon name="sliders" size={14} />
+          Auto-balance
         </button>
         <button onClick={() => actions.clearSolo()} disabled={!project.tracks.some((t) => t.solo)}>
           Clear solo
@@ -156,22 +158,20 @@ function TrackStrip({
       <div className="fader">
         <Meter read={read} />
         <div className="grow">
-          <Slider
-            label="Volume"
+          <MiniSlider
+            label="Vol"
             value={track.volume}
             min={0}
             max={1.6}
-            step={0.01}
-            format={(v) => `${gainToDb(v)} dB`}
+            format={(v) => `${gainToDb(v)}`}
             onChange={(v) => actions.updateTrack(track.id, { volume: v }, { history: false })}
             onCommit={(v) => actions.updateTrack(track.id, { volume: v })}
           />
-          <Slider
+          <MiniSlider
             label="Pan"
             value={track.pan}
             min={-1}
             max={1}
-            step={0.01}
             format={(v) =>
               Math.abs(v) < 0.01 ? 'C' : `${v < 0 ? 'L' : 'R'}${Math.round(Math.abs(v) * 100)}`
             }
@@ -181,21 +181,21 @@ function TrackStrip({
         </div>
       </div>
 
-      <div className="row" style={{ gap: 6 }}>
+      <div className="eq">
+        <span className="eyebrow">EQ</span>
         {(['lowGain', 'midGain', 'highGain'] as const).map((key) => (
-          <div key={key} className="grow">
-            <Slider
-              label={key === 'lowGain' ? 'Low' : key === 'midGain' ? 'Mid' : 'High'}
-              value={track[key]}
-              min={-18}
-              max={18}
-              step={0.1}
-              unit="dB"
-              format={(v) => v.toFixed(1)}
-              onChange={(v) => actions.updateTrack(track.id, { [key]: v }, { history: false })}
-              onCommit={(v) => actions.updateTrack(track.id, { [key]: v })}
-            />
-          </div>
+          <MiniSlider
+            key={key}
+            label={key === 'lowGain' ? 'Lo' : key === 'midGain' ? 'Mid' : 'Hi'}
+            value={track[key]}
+            min={-18}
+            max={18}
+            step={0.1}
+            labelWidth={24}
+            format={(v) => (Math.abs(v) < 0.05 ? '0' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`)}
+            onChange={(v) => actions.updateTrack(track.id, { [key]: v }, { history: false })}
+            onCommit={(v) => actions.updateTrack(track.id, { [key]: v })}
+          />
         ))}
       </div>
     </div>
@@ -293,7 +293,10 @@ function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
               <Spinner /> Aligning…
             </span>
           ) : (
-            'Smart vocal align'
+            <>
+              <Icon name="align" size={14} />
+              Vocal align
+            </>
           )}
         </button>
         <button
@@ -325,42 +328,48 @@ function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
         </button>
       </div>
 
-      <div className="row wrap" style={{ marginTop: 8 }}>
-        <span className="hint">Loop</span>
-        {[2, 4, 8].map((n) => (
-          <button key={n} onClick={() => actions.loopClip(clip.id, n)} title={`Repeat ${n} times back to back`}>
-            ×{n}
-          </button>
-        ))}
-        <span style={{ width: 10 }} />
-        <span className="hint">Speed</span>
-        <button onClick={() => actions.setClipSpeed(clip.id, 0.5)} title="Half-time">
-          ½×
-        </button>
-        <button onClick={() => actions.setClipSpeed(clip.id, 1)} title="Back to original speed">
-          1×
-        </button>
-        <button onClick={() => actions.setClipSpeed(clip.id, 2)} title="Double-time">
-          2×
-        </button>
+      <div className="field-row">
+        <span className="eyebrow">Loop</span>
+        <div className="btn-group">
+          {[2, 4, 8].map((n) => (
+            <button key={n} onClick={() => actions.loopClip(clip.id, n)} title={`Repeat ${n} times back to back`}>
+              ×{n}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="row wrap" style={{ marginTop: 10, alignItems: 'flex-start' }}>
-        <span className="hint" style={{ width: '100%' }}>
-          Transitions into this clip
-        </span>
-        {TRANSITIONS.map((t) => (
-          <button
-            key={t.kind}
-            title={t.description}
-            onClick={() => {
-              const result = applyTransition(project, clip, t.kind);
-              notify(result.message, result.applied ? 'ok' : 'error');
-            }}
-          >
-            {t.label}
+      <div className="field-row">
+        <span className="eyebrow">Speed</span>
+        <div className="btn-group">
+          <button onClick={() => actions.setClipSpeed(clip.id, 0.5)} title="Half-time">
+            ½×
           </button>
-        ))}
+          <button onClick={() => actions.setClipSpeed(clip.id, 1)} title="Back to original speed">
+            1×
+          </button>
+          <button onClick={() => actions.setClipSpeed(clip.id, 2)} title="Double-time">
+            2×
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <span className="eyebrow">Transition in</span>
+        <div className="btn-grid" style={{ marginTop: 5 }}>
+          {TRANSITIONS.map((t) => (
+            <button
+              key={t.kind}
+              title={t.description}
+              onClick={() => {
+                const result = applyTransition(project, clip, t.kind);
+                notify(result.message, result.applied ? 'ok' : 'error');
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Slider
@@ -375,16 +384,15 @@ function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
         onCommit={(v) => set({ tapeStop: v })}
       />
 
-      <div className="hint" style={{ marginTop: 8 }}>
-        Smart vocal align finds syllable onsets and moves the ones that are slightly off the beat,
-        stretching the audio between them by a few percent. Syllables already close to the grid, and
-        ones sitting deliberately between subdivisions, are left alone — it is not a quantiser.
+      <div className="hint" style={{ marginTop: 10 }}>
+        Vocal align nudges syllables onto the beat by stretching between them. Anything already close,
+        or deliberately off-grid, is left alone — it is not a quantiser.
       </div>
 
       {(clip.stretch !== 1 || clip.pitch !== 0) && (
         <div className="notice info" style={{ marginTop: 10 }}>
-          Warped clips play back at varispeed until the phase-vocoder render finishes, then switch to
-          the high-quality version automatically. Export always uses the rendered version.
+          Warped clips preview at varispeed, then switch to the phase-vocoder render when it is ready.
+          Export always uses the rendered version.
         </div>
       )}
     </>
@@ -450,14 +458,15 @@ function EffectCard({ target, effect }: { target: string; effect: EffectSettings
         />
         <span className="grow">{spec.label}</span>
         <button
-          className="ghost"
+          className="ghost icon"
+          style={{ width: 20, height: 20 }}
           onClick={(e) => {
             e.stopPropagation();
             actions.removeEffect(target, effect.id);
           }}
           aria-label={`Remove ${spec.label}`}
         >
-          ✕
+          <Icon name="close" size={12} />
         </button>
       </header>
       {open && (
@@ -598,11 +607,12 @@ function LaneEditor({
         <span className="grow">{spec.label}</span>
         <span className="hint">{points.length} pts</span>
         <button
-          className="ghost"
+          className="ghost icon"
+          style={{ width: 20, height: 20 }}
           onClick={() => actions.removeAutomationLane(trackId, lane.id)}
           aria-label="Remove lane"
         >
-          ✕
+          <Icon name="close" size={12} />
         </button>
       </header>
       <div className="body">

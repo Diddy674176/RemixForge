@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Icon } from './Icon.tsx';
 
 export function formatTime(seconds: number, withMs = false): string {
   const s = Math.max(0, seconds);
@@ -47,14 +48,14 @@ export function Panel({ title, count, actions, defaultOpen = true, children }: P
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="panel">
-      <header onClick={() => setOpen((o) => !o)}>
-        <span className={`chev ${open ? 'open' : ''}`} aria-hidden>
-          ›
-        </span>
-        <span>{title}</span>
+      <header onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <Icon name="chevron" size={12} weight={2} className={`chev ${open ? 'open' : ''}`} />
+        <span className="label">{title}</span>
         {count !== undefined && <span className="count">{count}</span>}
         <span className="spacer" />
-        <span onClick={(e) => e.stopPropagation()}>{actions}</span>
+        <span className="row" onClick={(e) => e.stopPropagation()}>
+          {actions}
+        </span>
       </header>
       {open && <div className="body">{children}</div>}
     </section>
@@ -95,6 +96,10 @@ export function Slider({
   const sMax = toSlider(max);
   const sStep = log ? (sMax - sMin) / 400 : step;
 
+  // The filled portion of the track is painted from this, so the control reads
+  // as a real fader rather than the browser's default.
+  const pct = sMax > sMin ? ((toSlider(value) - sMin) / (sMax - sMin)) * 100 : 0;
+
   return (
     <div className="slider">
       <label>{label}</label>
@@ -108,11 +113,56 @@ export function Slider({
         max={sMax}
         step={sStep}
         value={toSlider(value)}
+        style={{ '--pct': `${Math.max(0, Math.min(100, pct))}%` } as React.CSSProperties}
         onChange={(e) => onChange(fromSlider(Number(e.target.value)))}
         onPointerUp={(e) => onCommit?.(fromSlider(Number((e.target as HTMLInputElement).value)))}
         onKeyUp={(e) => onCommit?.(fromSlider(Number((e.target as HTMLInputElement).value)))}
         aria-label={label}
       />
+    </div>
+  );
+}
+
+/**
+ * Single-row slider for dense panels.
+ *
+ * The stacked `Slider` needs three rows per parameter, which makes a mixer
+ * strip taller than the screen once EQ is included. This puts the label,
+ * track and readout on one line.
+ */
+export function MiniSlider({
+  label,
+  value,
+  min,
+  max,
+  step = 0.01,
+  format,
+  onChange,
+  onCommit,
+  labelWidth = 34,
+}: SliderProps & { labelWidth?: number }) {
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  return (
+    <div className="mini-slider">
+      <span className="k">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        style={
+          {
+            '--pct': `${Math.max(0, Math.min(100, pct))}%`,
+            '--k-w': `${labelWidth}px`,
+          } as React.CSSProperties
+        }
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={(e) => onCommit?.(Number((e.target as HTMLInputElement).value))}
+        onKeyUp={(e) => onCommit?.(Number((e.target as HTMLInputElement).value))}
+        aria-label={label}
+      />
+      <span className="v">{format ? format(value) : value.toFixed(2)}</span>
     </div>
   );
 }
@@ -167,8 +217,8 @@ export function Modal({ title, onClose, footer, children, width }: ModalProps) {
       <div className="modal" style={width ? { width: `min(${width}px, 100%)` } : undefined} role="dialog" aria-label={title}>
         <header>
           <span className="grow">{title}</span>
-          <button className="ghost" onClick={onClose} aria-label="Close">
-            ✕
+          <button className="ghost icon" onClick={onClose} aria-label="Close">
+            <Icon name="close" size={14} />
           </button>
         </header>
         <div className="body">{children}</div>
@@ -211,7 +261,12 @@ export function Toasts() {
     <div className="toasts" role="status" aria-live="polite">
       {items.map((t) => (
         <div key={t.id} className={`toast ${t.tone}`}>
-          {t.message}
+          <Icon
+            name={t.tone === 'error' ? 'alert' : t.tone === 'ok' ? 'check' : 'waveform'}
+            size={13}
+            style={{ marginTop: 1, color: `var(--${t.tone === 'error' ? 'danger' : t.tone === 'ok' ? 'ok' : 'text-3'})` }}
+          />
+          <span>{t.message}</span>
         </div>
       ))}
     </div>

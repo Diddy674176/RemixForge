@@ -3,6 +3,7 @@ import { PITCH_NAMES } from '../../audio/analysis/key.ts';
 import { actions } from '../../state/store.ts';
 import type { Project } from '../../state/types.ts';
 import { formatBars, formatTime } from '../components/primitives.tsx';
+import { Icon } from '../components/Icon.tsx';
 import { useTransport } from '../hooks.ts';
 
 interface Props {
@@ -17,40 +18,58 @@ export function Transport({ project, metronome, onToggleMetronome }: Props) {
 
   return (
     <div className="transport">
-      <button
-        className="primary"
-        onClick={() => (transport.playing ? engine.pause() : void engine.play())}
-        title={transport.playing ? 'Pause (space)' : 'Play (space)'}
-        style={{ width: 48 }}
-      >
-        {transport.playing ? '❚❚' : '▶'}
-      </button>
-      <button onClick={() => engine.stop()} title="Stop (return to start)">
-        ■
-      </button>
-      <button
-        className={project.loop.enabled ? 'active' : ''}
-        onClick={() => actions.setLoop({ enabled: !project.loop.enabled })}
-        title="Loop the region set below"
-      >
-        ↻
-      </button>
-      <button className={metronome ? 'active' : ''} onClick={onToggleMetronome} title="Metronome">
-        ♩
-      </button>
-
-      <div className="mono" style={{ minWidth: 148, fontSize: 15 }}>
-        {formatTime(transport.position, true)}
-        <span style={{ color: 'var(--text-faint)' }}> / {formatTime(total)}</span>
+      <div className="row" style={{ gap: 5 }}>
+        <button
+          className="primary icon lg"
+          onClick={() => (transport.playing ? engine.pause() : void engine.play())}
+          title={transport.playing ? 'Pause — space' : 'Play — space'}
+          aria-label={transport.playing ? 'Pause' : 'Play'}
+        >
+          <Icon name={transport.playing ? 'pause' : 'play'} size={16} weight={2} />
+        </button>
+        <button className="icon lg" onClick={() => engine.stop()} title="Stop and return to the start" aria-label="Stop">
+          <Icon name="stop" size={13} />
+        </button>
+        <button
+          className={`icon lg ${project.loop.enabled ? 'active' : ''}`}
+          onClick={() => actions.setLoop({ enabled: !project.loop.enabled })}
+          title="Loop the region — L"
+          aria-label="Loop"
+        >
+          <Icon name="loop" size={15} />
+        </button>
+        <button
+          className={`icon lg ${metronome ? 'active' : ''}`}
+          onClick={onToggleMetronome}
+          title="Metronome — M"
+          aria-label="Metronome"
+        >
+          <Icon name="metronome" size={15} />
+        </button>
       </div>
-      <div className="mono" style={{ minWidth: 62, color: 'var(--text-dim)' }}>
-        bar {formatBars(transport.position, project.bpm, project.meter)}
+
+      {/* Primary readout: elapsed large, total and bar secondary. */}
+      <div className="row" style={{ gap: 10, marginLeft: 4 }}>
+        <span
+          className="mono"
+          style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.04em', minWidth: 92 }}
+        >
+          {formatTime(transport.position, true)}
+        </span>
+        <span className="col" style={{ gap: 0, lineHeight: 1.25 }}>
+          <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-3)' }}>
+            {formatTime(total)}
+          </span>
+          <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-2)' }}>
+            bar {formatBars(transport.position, project.bpm, project.meter)}
+          </span>
+        </span>
       </div>
 
-      <span style={{ width: 8 }} />
+      <span className="divider" style={{ width: 1, height: 26, background: 'var(--line-2)' }} />
 
-      <label className="row" style={{ gap: 5 }}>
-        <span className="hint">BPM</span>
+      <label className="row" style={{ gap: 6 }}>
+        <span className="eyebrow">BPM</span>
         <input
           type="number"
           className="mono"
@@ -63,8 +82,8 @@ export function Transport({ project, metronome, onToggleMetronome }: Props) {
         />
       </label>
 
-      <label className="row" style={{ gap: 5 }}>
-        <span className="hint">Key</span>
+      <label className="row" style={{ gap: 6 }}>
+        <span className="eyebrow">Key</span>
         <select
           value={project.keyTonic}
           onChange={(e) => actions.setKey(Number(e.target.value), project.keyMode)}
@@ -86,8 +105,8 @@ export function Transport({ project, metronome, onToggleMetronome }: Props) {
         </select>
       </label>
 
-      <label className="row" style={{ gap: 5 }}>
-        <span className="hint">Metre</span>
+      <label className="row" style={{ gap: 6 }}>
+        <span className="eyebrow">Metre</span>
         <select
           value={project.meter}
           onChange={(e) => actions.setMeter(Number(e.target.value))}
@@ -107,11 +126,11 @@ export function Transport({ project, metronome, onToggleMetronome }: Props) {
           checked={project.autoHarmonicMatch}
           onChange={(e) => actions.setAutoHarmonicMatch(e.target.checked)}
         />
-        <span className="hint">Auto harmonic match</span>
+        <span className="hint">Harmonic match</span>
       </label>
 
-      <div className="row" style={{ gap: 5 }}>
-        <span className="hint">Loop</span>
+      <div className="row" style={{ gap: 6 }}>
+        <span className="eyebrow">Loop</span>
         <input
           type="number"
           className="mono"

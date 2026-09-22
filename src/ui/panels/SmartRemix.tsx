@@ -12,6 +12,7 @@ import {
 } from '../../remix/smartRemix.ts';
 import type { Project } from '../../state/types.ts';
 import { Panel, notify } from '../components/primitives.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 interface Props {
   project: Project;
@@ -114,7 +115,8 @@ export function SmartRemix({ project }: Props) {
 
               <div className="row" style={{ marginTop: 8 }}>
                 <button className="primary" onClick={() => load(proposal)}>
-                  Load into timeline
+                  <Icon name="check" size={14} />
+                  Load
                 </button>
                 <button className="ghost" onClick={() => setExpanded(open ? null : proposal.id)}>
                   {open ? 'Hide detail' : 'Why this score?'}
@@ -142,7 +144,7 @@ export function SmartRemix({ project }: Props) {
                   ))}
                   {proposal.compatibility.conflicts.map((c) => (
                     <div className="conflict" key={c}>
-                      <span aria-hidden>⚠</span>
+                      <Icon name="alert" size={12} />
                       <span>{c}</span>
                     </div>
                   ))}

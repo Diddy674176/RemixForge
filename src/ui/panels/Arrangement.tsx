@@ -13,6 +13,7 @@ import { barDuration } from '../../remix/sync.ts';
 import type { SectionLabel } from '../../audio/analysis/structure.ts';
 import type { Project } from '../../state/types.ts';
 import { Panel, formatTime, notify } from '../components/primitives.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 /** Roles an arrangement slot can fill, in mixer order. */
 const ROLES: StemId[] = ['lead-vocals', 'drums', 'bass', 'melody', 'instrumental'];
@@ -158,11 +159,12 @@ export function Arrangement({ project }: { project: Project }) {
                 <span className="hint">bars</span>
                 <span className="grow" />
                 <button
-                  className="ghost"
+                  className="ghost icon"
+                  style={{ width: 20, height: 20 }}
                   onClick={() => setSlots(seeded.filter((s) => s.id !== slot.id))}
                   aria-label="Remove section"
                 >
-                  ✕
+                  <Icon name="close" size={12} />
                 </button>
               </header>
               <div className="body">
@@ -214,6 +216,7 @@ export function Arrangement({ project }: { project: Project }) {
                 ])
               }
             >
+              <Icon name="plus" size={13} />
               Add section
             </button>
             <button className="ghost" onClick={() => setSlots(defaultSlots(usable[0]!.id))}>

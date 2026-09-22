@@ -15,6 +15,18 @@ import { notify } from './components/primitives.tsx';
 /** Hues spread around the wheel so sources stay visually distinct. */
 const SOURCE_HUES = [204, 28, 288, 150, 340, 48, 176, 264, 12, 96];
 
+/**
+ * Separations in flight, keyed by source.
+ *
+ * Import auto-separates in the background while the user is free to press
+ * Quick Remix, which separates whatever it needs. Without this, the same
+ * source gets separated twice at once — two workers doing identical work, and
+ * two writes racing to set the same stems. A second request joins the running
+ * job instead, and only starts its own pass if the first did not cover the
+ * stems it asked for.
+ */
+const separationsInFlight = new Map<string, { targets: StemId[]; job: Promise<void> }>();
+
 export function useTransport(): TransportState {
   return useSyncExternalStore(
     (fn) => engine.subscribe(fn),
@@ -45,7 +57,7 @@ export interface ImportOptions {
 export function useImporter() {
   const [busy, setBusy] = useState(false);
 
-  const separate = useCallback(
+  const runSeparation = useCallback(
     async (sourceId: string, targets: StemId[] = DEFAULT_TARGETS) => {
       const project = store.getState().project;
       const source = project.sources.find((s) => s.id === sourceId);
@@ -102,6 +114,28 @@ export function useImporter() {
       }
     },
     [],
+  );
+
+  const separate = useCallback(
+    async (sourceId: string, targets: StemId[] = DEFAULT_TARGETS) => {
+      const pending = separationsInFlight.get(sourceId);
+      if (pending) {
+        await pending.job;
+        // If the job we joined already produced everything we need, stop here.
+        const source = store.getState().project.sources.find((s) => s.id === sourceId);
+        const covered = targets.every((t) => source?.stems[t]?.ready);
+        if (covered) return;
+      }
+
+      const job = runSeparation(sourceId, targets);
+      separationsInFlight.set(sourceId, { targets, job });
+      try {
+        await job;
+      } finally {
+        if (separationsInFlight.get(sourceId)?.job === job) separationsInFlight.delete(sourceId);
+      }
+    },
+    [runSeparation],
   );
 
   const importFiles = useCallback(

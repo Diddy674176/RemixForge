@@ -10,6 +10,7 @@ import type { Project, Source } from '../../state/types.ts';
 import { Panel, Spinner, formatTime, notify } from '../components/primitives.tsx';
 import { placeSection, placeStem, useImporter } from '../hooks.ts';
 import { engine } from '../../audio/engine.ts';
+import { Icon } from '../components/Icon.tsx';
 
 const DETAILED_TARGETS: StemId[] = [
   'lead-vocals',
@@ -65,10 +66,19 @@ export function SourcesPanel({ project, importer }: Props) {
           </span>
         ) : (
           <>
-            <div style={{ marginBottom: 8 }}>Drop audio here</div>
-            <button onClick={() => fileInput.current?.click()}>Choose files</button>
-            <div className="hint" style={{ marginTop: 8 }}>
-              MP3, WAV, FLAC, AAC, M4A, OGG, AIFF
+            <Icon
+              name="waveform"
+              size={24}
+              weight={1.4}
+              style={{ color: 'var(--text-3)', margin: '0 auto 9px' }}
+            />
+            <div style={{ color: 'var(--text-2)', marginBottom: 9 }}>Drop audio here</div>
+            <button onClick={() => fileInput.current?.click()}>
+              <Icon name="folder" size={14} />
+              Choose files
+            </button>
+            <div className="hint" style={{ marginTop: 9 }}>
+              MP3 · WAV · FLAC · AAC · M4A · OGG · AIFF
             </div>
           </>
         )}
@@ -115,7 +125,7 @@ function SectionPicker({ source, project }: { source: Source; project: Project }
   return (
     <div style={{ marginBottom: 10 }}>
       <div className="row" style={{ marginBottom: 6 }}>
-        <span className="hint">Add section as</span>
+        <span className="eyebrow">Section as</span>
         <select
           className="grow"
           value={stem}
@@ -143,15 +153,16 @@ function SectionPicker({ source, project }: { source: Source; project: Project }
           </span>
           <span className="hint mono">{formatTime(section.startTime)}</span>
           <button
-            className="ghost"
+            className="ghost icon"
             title={`Add this ${section.label} at the playhead`}
+            aria-label={`Add ${section.label} at the playhead`}
             onClick={() => {
               if (placeSection(project, source, stem, section, engine.state().position)) {
                 notify(`Added ${source.name} ${section.label} at the playhead.`, 'ok');
               }
             }}
           >
-            +
+            <Icon name="plus" size={13} />
           </button>
         </div>
       ))}
@@ -196,17 +207,29 @@ function SourceCard({
       <div className="head" onClick={onToggle}>
         <span className="swatch" style={{ background: `hsl(${source.hue} 70% 55%)` }} />
         <span className="grow" style={{ minWidth: 0 }}>
-          <div className="truncate" style={{ fontWeight: 600 }}>
-            {index + 1}. {source.name}
+          <div className="row" style={{ gap: 6 }}>
+            <span className="index">{String(index + 1).padStart(2, '0')}</span>
+            <span className="truncate" style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>
+              {source.name}
+            </span>
           </div>
           <div className="hint truncate">
             {formatTime(source.duration)} · {source.channelCount === 1 ? 'mono' : 'stereo'} ·{' '}
             {(source.sampleRate / 1000).toFixed(1)} kHz
           </div>
         </span>
-        <span className={`chev ${open ? 'open' : ''}`} aria-hidden>
-          ›
-        </span>
+        <button
+          className="ghost danger icon remove"
+          onClick={(e) => {
+            e.stopPropagation();
+            actions.removeSource(source.id);
+          }}
+          title={`Remove ${source.name}`}
+          aria-label={`Remove ${source.name}`}
+        >
+          <Icon name="trash" size={13} />
+        </button>
+        <Icon name="chevron" size={12} weight={2} className={`chev ${open ? 'open' : ''}`} />
       </div>
 
       <div className="facts">
@@ -242,31 +265,31 @@ function SourceCard({
 
           {warnings.map((w) => (
             <div className="conflict" key={w}>
-              <span aria-hidden>⚠</span>
+              <Icon name="alert" size={12} />
               <span>{w}</span>
             </div>
           ))}
 
           <div className="row wrap" style={{ marginTop: 8, marginBottom: 8 }}>
-            <button onClick={() => placeStem(project, source, 'full')}>Add full mix</button>
+            <button onClick={() => placeStem(project, source, 'full')}>
+              <Icon name="plus" size={13} />
+              Full mix
+            </button>
             {source.separationState !== 'running' && (
               <>
                 <button onClick={() => void importer.separate(source.id, DEFAULT_TARGETS)}>
-                  {stems.length ? 'Re-separate' : 'Separate stems'}
+                  <Icon name="layers" size={13} />
+                  {stems.length ? 'Re-separate' : 'Separate'}
                 </button>
                 <button
                   className="ghost"
                   onClick={() => void importer.separate(source.id, DETAILED_TARGETS)}
                   title="Also split the kit into kick, snare, hi-hats and percussion"
                 >
-                  Detailed
+                  + kit
                 </button>
               </>
             )}
-            <span className="grow" />
-            <button className="ghost danger" onClick={() => actions.removeSource(source.id)}>
-              Remove
-            </button>
           </div>
 
           {source.separationState === 'running' && (
@@ -281,7 +304,7 @@ function SourceCard({
           )}
           {source.separationState === 'error' && (
             <div className="conflict">
-              <span aria-hidden>⚠</span>
+              <Icon name="alert" size={12} />
               <span>{source.separationError}</span>
             </div>
           )}
@@ -310,7 +333,7 @@ function SourceCard({
                         }
                       }}
                     >
-                      {previewing === state.assetId ? '■' : '▶'}
+                      <Icon name={previewing === state.assetId ? 'stop' : 'play'} size={11} />
                     </button>
                     <button
                       className="ghost"
@@ -320,8 +343,9 @@ function SourceCard({
                       Use
                     </button>
                     <button
-                      className="ghost"
+                      className="ghost icon"
                       title="Download this stem as a WAV"
+                      aria-label={`Download ${meta.label}`}
                       onClick={() => {
                         const asset = audioAssets.get(state.assetId);
                         if (!asset) return;
@@ -334,7 +358,7 @@ function SourceCard({
                         );
                       }}
                     >
-                      ↓
+                      <Icon name="download" size={13} />
                     </button>
                   </div>
                 );

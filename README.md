@@ -9,6 +9,10 @@ in Web Workers and the Web Audio API.
 
 ![RemixForge](docs/screenshot.png)
 
+<sub>Simple mode. Studio mode adds the mixer, effect racks, automation and per-clip controls:</sub>
+
+![Studio mode](docs/studio.png)
+
 ## The workflow
 
 ```
@@ -169,6 +173,19 @@ Three real bugs these caught:
 - Alignment anchors that exceeded the local rate limit were dropped, which left those syllables to
   be dragged *backwards* by the surrounding stretch. Clamping instead of dropping took the measured
   error from 26 ms down to 8 ms.
+
+## Interface
+
+Two modes share one layout: sources and assistive panels on the left, timeline in the middle,
+transport along the bottom. **Studio** adds the inspector on the right — mixer, effect racks,
+automation lanes and per-clip controls.
+
+The design is built for density, the way audio software has to be. Neutral warm greys throughout so
+the only saturated colour on screen is the stems themselves, which keeps a stem's identity constant
+from the source list to the waveform to the mixer strip. One amber accent marks the primary action
+and active state, and nothing else competes for it. Icons are drawn in-repo on a single 24-unit grid
+at one stroke weight, so toolbars read as one family. Numerals are tabular everywhere a value
+changes — a fader readout that reflows as it moves is unreadable.
 
 ## Architecture
 

@@ -3,6 +3,7 @@ import { interpret } from '../../assistant/interpret.ts';
 import { EXAMPLES } from '../../assistant/vocabulary.ts';
 import type { Project } from '../../state/types.ts';
 import { Panel } from '../components/primitives.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 interface Message {
   id: number;
@@ -79,8 +80,14 @@ export function Assistant({ project }: { project: Project }) {
           onKeyDown={(e) => e.key === 'Enter' && send(input)}
           aria-label="Assistant instruction"
         />
-        <button onClick={() => send(input)} disabled={!input.trim()}>
-          Send
+        <button
+          className="icon"
+          onClick={() => send(input)}
+          disabled={!input.trim()}
+          aria-label="Send"
+          title="Send"
+        >
+          <Icon name="send" size={14} />
         </button>
       </div>
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { actions } from '../../state/store.ts';
 import type { Project } from '../../state/types.ts';
 import { Panel, notify } from '../components/primitives.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 /**
  * A/B versions.
@@ -53,11 +54,11 @@ export function Versions({ project }: { project: Project }) {
               </span>
             </button>
             <button
-              className="ghost danger"
+              className="ghost danger icon"
               onClick={() => actions.removeVersion(version.id)}
               aria-label={`Delete ${version.name}`}
             >
-              ✕
+              <Icon name="close" size={12} />
             </button>
           </div>
         ))

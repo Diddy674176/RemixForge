@@ -15,6 +15,7 @@ import { Timeline } from './panels/Timeline.tsx';
 import { Transport } from './panels/Transport.tsx';
 import { Versions } from './panels/Versions.tsx';
 import { Toasts, notify } from './components/primitives.tsx';
+import { Icon, Logo } from './components/Icon.tsx';
 import { useEngineSync, useImporter, useShortcuts } from './hooks.ts';
 
 type Mode = 'beginner' | 'advanced';
@@ -129,9 +130,7 @@ export function App() {
     <div className={`app ${mode === 'beginner' ? 'no-right' : ''}`}>
       <header className="topbar">
         <span className="brand">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M4 14v-4M8 18V6M12 15V9M16 20V4M20 13v-2" stroke="hsl(172 76% 48%)" strokeWidth="2.2" strokeLinecap="round" />
-          </svg>
+          <Logo size={19} />
           RemixForge
         </span>
 
@@ -142,38 +141,60 @@ export function App() {
           aria-label="Project name"
         />
 
-        <button className="ghost" onClick={() => actions.undo()} disabled={!history.canUndo} title={history.lastLabel ? `Undo ${history.lastLabel}` : 'Undo'}>
-          ↶
+        <button
+          className="ghost icon"
+          onClick={() => actions.undo()}
+          disabled={!history.canUndo}
+          title={history.lastLabel ? `Undo — ${history.lastLabel}` : 'Undo'}
+          aria-label="Undo"
+        >
+          <Icon name="undo" size={15} />
         </button>
-        <button className="ghost" onClick={() => actions.redo()} disabled={!history.canRedo} title="Redo">
-          ↷
+        <button
+          className="ghost icon"
+          onClick={() => actions.redo()}
+          disabled={!history.canRedo}
+          title="Redo"
+          aria-label="Redo"
+        >
+          <Icon name="redo" size={15} />
         </button>
 
         <span className="spacer" />
 
-        <span className="hint" style={{ minWidth: 76, textAlign: 'right' }}>
-          {autosave === 'saving' ? 'Saving…' : autosave === 'saved' ? 'Saved' : autosave === 'error' ? 'Save failed' : ''}
+        <span
+          className="hint row"
+          style={{ minWidth: 70, justifyContent: 'flex-end', gap: 5 }}
+          title={autosave === 'error' ? 'Autosave failed — check browser storage' : 'Autosaves to this browser'}
+        >
+          {autosave === 'saving' && <span className="spin" />}
+          {autosave === 'saved' && <Icon name="check" size={12} style={{ color: 'var(--ok)' }} />}
+          {autosave === 'error' && <Icon name="alert" size={12} style={{ color: 'var(--danger)' }} />}
+          {autosave === 'saving' ? 'Saving' : autosave === 'saved' ? 'Saved' : autosave === 'error' ? 'Failed' : ''}
         </span>
 
-        <div className="row" style={{ gap: 2 }}>
+        <div className="segment">
           <button
-            className={mode === 'beginner' ? 'active' : ''}
+            className={mode === 'beginner' ? 'on' : ''}
             onClick={() => setMode('beginner')}
             title="Simplified layout"
           >
-            Beginner
+            Simple
           </button>
           <button
-            className={mode === 'advanced' ? 'active' : ''}
+            className={mode === 'advanced' ? 'on' : ''}
             onClick={() => setMode('advanced')}
             title="Full mixer, effects and automation"
           >
-            Advanced
+            Studio
           </button>
         </div>
 
-        <button onClick={() => setShowSettings(true)}>Settings</button>
+        <button className="ghost icon" onClick={() => setShowSettings(true)} title="Settings" aria-label="Settings">
+          <Icon name="settings" size={15} />
+        </button>
         <button className="primary" onClick={() => setShowExport(true)}>
+          <Icon name="export" size={14} />
           Export
         </button>
       </header>

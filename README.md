@@ -91,6 +91,19 @@ crossfade automatically.
 For finer control, the source panel lists each detected section with a stem picker, so you can drop
 just the chorus vocal from one song and the drop from another at the playhead.
 
+### Transitions and creative edits
+
+Five one-click transitions sit on every clip, applied to the bars leading into it: **filter sweep**,
+**delay throw**, **reverb tail**, **riser** (a synthesised noise sweep that builds and ducks into the
+downbeat) and **stutter** (the final beat sliced into eight repeats).
+
+None of them creates a hidden "transition object". Each one writes ordinary effects, automation
+points and clips into the project, so you can open the automation lane afterwards and drag the
+points, or undo it like any other edit.
+
+Clips also do loop ×2/×4/×8, half-time and double-time, reverse, and tape stop — the playback rate
+ramping to a standstill over the tail, in live playback and offline render alike.
+
 ### Separation: what to expect
 
 The built-in engine is real DSP, not a neural network. It is genuinely good at **drums, bass and

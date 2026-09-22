@@ -5,6 +5,7 @@ import { MASTERING_PRESETS, masterChainFor } from '../../audio/effects/mastering
 import { actions } from '../../state/store.ts';
 import { autoMix } from '../../remix/autoMix.ts';
 import { alignClipToGrid, describeAlignment } from '../../remix/align.ts';
+import { TRANSITIONS, applyTransition } from '../../remix/transitions.ts';
 import { resyncClip } from '../../remix/sync.ts';
 import type {
   AutomationLane,
@@ -333,6 +334,24 @@ function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
         <button onClick={() => actions.setClipSpeed(clip.id, 2)} title="Double-time">
           2×
         </button>
+      </div>
+
+      <div className="row wrap" style={{ marginTop: 10, alignItems: 'flex-start' }}>
+        <span className="hint" style={{ width: '100%' }}>
+          Transitions into this clip
+        </span>
+        {TRANSITIONS.map((t) => (
+          <button
+            key={t.kind}
+            title={t.description}
+            onClick={() => {
+              const result = applyTransition(project, clip, t.kind);
+              notify(result.message, result.applied ? 'ok' : 'error');
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <Slider

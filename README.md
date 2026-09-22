@@ -101,6 +101,10 @@ None of them creates a hidden "transition object". Each one writes ordinary effe
 points and clips into the project, so you can open the automation lane afterwards and drag the
 points, or undo it like any other edit.
 
+**Double** creates a second vocal take on its own track, ~19 ms late, detuned by a seventh of a
+semitone and panned opposite. Two real takes never land on the same millisecond or the same cent,
+which is why a plain copy panned wide still sounds like a copy.
+
 Clips also do loop ×2/×4/×8, half-time and double-time, reverse, and tape stop — the playback rate
 ramping to a standstill over the tail, in live playback and offline render alike.
 

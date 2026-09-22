@@ -5,7 +5,7 @@ import { MASTERING_PRESETS, masterChainFor } from '../../audio/effects/mastering
 import { actions } from '../../state/store.ts';
 import { autoMix } from '../../remix/autoMix.ts';
 import { alignClipToGrid, describeAlignment } from '../../remix/align.ts';
-import { TRANSITIONS, applyTransition } from '../../remix/transitions.ts';
+import { TRANSITIONS, applyTransition, doubleClip } from '../../remix/transitions.ts';
 import { resyncClip } from '../../remix/sync.ts';
 import type {
   AutomationLane,
@@ -295,6 +295,15 @@ function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
           ) : (
             'Smart vocal align'
           )}
+        </button>
+        <button
+          onClick={() => {
+            const result = doubleClip(project, clip);
+            notify(result.message, result.applied ? 'ok' : 'error');
+          }}
+          title="Add a detuned, slightly late second voice panned opposite"
+        >
+          Double
         </button>
         <button className={clip.reverse ? 'active' : ''} onClick={() => set({ reverse: !clip.reverse })}>
           Reverse

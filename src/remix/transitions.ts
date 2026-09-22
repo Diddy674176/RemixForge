@@ -237,3 +237,59 @@ export function applyTransition(
       return { applied: false, message: 'Unknown transition.' };
   }
 }
+
+export interface DoubleOptions {
+  /** Timing offset of the double, in seconds. */
+  delay?: number;
+  /** Detune in semitones — fractional, so it beats against the original. */
+  detune?: number;
+  /** How far apart the two voices sit in the stereo field. */
+  spread?: number;
+}
+
+/**
+ * Vocal doubling.
+ *
+ * Creates a second voice on its own track, nudged late and detuned by a
+ * fraction of a semitone, panned opposite the original. That combination is
+ * what a real double gives you — two takes never land on the same millisecond
+ * or the same cent — and it is why a simple copy panned wide sounds like a
+ * copy rather than a double.
+ */
+export function doubleClip(project: Project, clip: Clip, opts: DoubleOptions = {}): TransitionResult {
+  const delay = opts.delay ?? 0.019;
+  const detune = opts.detune ?? -0.14;
+  const spread = opts.spread ?? 0.4;
+
+  const source = project.tracks.find((t) => t.id === clip.trackId);
+  if (!source) return { applied: false, message: 'That clip has no track.' };
+
+  const name = `${source.name} double`;
+  const existing = store.getState().project.tracks.find((t) => t.name === name);
+  const track =
+    existing ??
+    actions.addTrack({
+      name,
+      hue: source.hue,
+      volume: source.volume * 0.62,
+      pan: source.pan >= 0 ? -spread : spread,
+    });
+
+  actions.addClip({
+    ...clip,
+    id: newId('clip'),
+    trackId: track.id,
+    name: `${clip.name} (double)`,
+    start: clip.start + delay,
+    pitch: clip.pitch + detune,
+    gain: clip.gain * 0.9,
+  });
+
+  // Push the original slightly the other way so the pair sits around the centre.
+  actions.updateTrack(source.id, { pan: source.pan >= 0 ? spread * 0.5 : -spread * 0.5 });
+
+  return {
+    applied: true,
+    message: `Doubled onto "${name}" — ${Math.round(delay * 1000)} ms late, ${detune} semitones, panned opposite.`,
+  };
+}

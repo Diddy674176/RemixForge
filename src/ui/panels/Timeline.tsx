@@ -173,10 +173,11 @@ export function Timeline({ project, selection, onSelect, selectedTrackId, onSele
             />
           ))}
 
-          <div
-            className="playhead"
-            style={{ left: HEAD_WIDTH + transport.position * zoom, top: 0 }}
-          />
+          {/* No tracks means nothing to point at, and the line would otherwise
+              cut straight through the empty state. */}
+          {project.tracks.length > 0 && (
+            <div className="playhead" style={{ left: HEAD_WIDTH + transport.position * zoom, top: 0 }} />
+          )}
         </div>
       </div>
     </div>

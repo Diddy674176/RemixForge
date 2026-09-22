@@ -67,7 +67,7 @@ export function ExportDialog({ project, onClose }: { project: Project; onClose: 
         </div>
       )}
 
-      <div className="row" style={{ marginBottom: 12 }}>
+      <div className="btn-group" style={{ marginBottom: 10 }}>
         {(Object.keys(FORMAT_INFO) as ExportFormat[]).map((f) => (
           <button key={f} className={format === f ? 'active' : ''} onClick={() => setFormat(f)}>
             {FORMAT_INFO[f].label}
@@ -82,7 +82,7 @@ export function ExportDialog({ project, onClose }: { project: Project; onClose: 
       <div className="row wrap" style={{ gap: 14 }}>
         {format !== 'mp3' ? (
           <label className="col" style={{ gap: 3 }}>
-            <span className="hint">Bit depth</span>
+            <span className="eyebrow">Bit depth</span>
             <select
               value={quality.bitDepth}
               onChange={(e) =>
@@ -96,7 +96,7 @@ export function ExportDialog({ project, onClose }: { project: Project; onClose: 
           </label>
         ) : (
           <label className="col" style={{ gap: 3 }}>
-            <span className="hint">Bitrate</span>
+            <span className="eyebrow">Bitrate</span>
             <select
               value={quality.mp3Bitrate}
               onChange={(e) => setQuality({ ...quality, mp3Bitrate: Number(e.target.value) })}
@@ -111,7 +111,7 @@ export function ExportDialog({ project, onClose }: { project: Project; onClose: 
         )}
 
         <label className="col" style={{ gap: 3 }}>
-          <span className="hint">Sample rate</span>
+          <span className="eyebrow">Sample rate</span>
           <select
             value={quality.sampleRate}
             onChange={(e) => setQuality({ ...quality, sampleRate: Number(e.target.value) })}
@@ -125,8 +125,10 @@ export function ExportDialog({ project, onClose }: { project: Project; onClose: 
         </label>
 
         <div className="col" style={{ gap: 3 }}>
-          <span className="hint">Length</span>
-          <span className="mono">{formatTime(duration)}</span>
+          <span className="eyebrow">Length</span>
+          <span className="mono" style={{ fontSize: 13, paddingTop: 4 }}>
+            {formatTime(duration)}
+          </span>
         </div>
       </div>
 

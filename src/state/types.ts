@@ -59,6 +59,11 @@ export interface Clip {
   /** Timeline duration / source duration. 1 = original tempo. */
   stretch: number;
   reverse: boolean;
+  /**
+   * Seconds of tape-stop at the end of the clip: playback rate ramps to a
+   * standstill over this long. 0 disables it.
+   */
+  tapeStop?: number;
   /** Hue override; falls back to the stem colour. */
   hue?: number;
 }

@@ -56,8 +56,40 @@ algorithm running locally.
 | Structure | Self-similarity of beat-synchronous chroma + timbre, checkerboard novelty kernel | `src/audio/analysis/structure.ts` |
 | Separation | Harmonic/percussive median filtering (HPSS) plus stereo centre extraction | `src/audio/separation/dspEngine.ts` |
 | Time-stretch | Phase vocoder with peak locking and transient preservation | `src/audio/dsp/timestretch.ts` |
+| Vocal timing | Syllable onset detection, sparse warp map, per-segment stretch | `src/audio/dsp/vocalAlign.ts` |
 | Resampling | 16-tap Kaiser-windowed sinc, widened when downsampling | `src/audio/dsp/resample.ts` |
 | Export | In-repo WAV and FLAC encoders; MP3 via lamejs, loaded on demand | `src/audio/dsp/`, `src/audio/export.ts` |
+
+### Smart Vocal Align
+
+Vocals borrowed from another song rarely sit on the new beat. Align finds syllable onsets, works out
+which are slightly off the grid, and stretches the audio *between* them by a few percent so they land
+on the beat.
+
+It is deliberately not a quantiser:
+
+- Syllables already close to the grid are left alone.
+- Syllables sitting between subdivisions are treated as phrasing and left alone.
+- Local speed changes are bounded — more slack over short transient-led spans, less across sustained
+  notes, where warble would show.
+- When a move needs more stretch than its span allows, the anchor is moved as far as the limit
+  permits rather than dropped. Dropping is worse than a partial correction: an onset with no anchor
+  gets dragged by whatever stretch its segment receives, which can push it *further* off the beat.
+
+On a real separated vocal it reports what it did, e.g. *"Moved 53 syllables by 13 ms on average
+(largest 38 ms). 14 left alone."* The original audio is untouched — the result is a new asset, so
+undo restores the take exactly.
+
+### Arrangement mode
+
+Lay a song out section by section: each slot is a number of bars at the project tempo, and every part
+(vocals, drums, bass, melody, instrumental) can come from a different source. The matching section of
+each song is pulled in, warped to the project tempo and trimmed to the slot, so sections from songs
+recorded at different tempos line up bar for bar. Transitions between different songs get a longer
+crossfade automatically.
+
+For finer control, the source panel lists each detected section with a stem picker, so you can drop
+just the chorus vocal from one song and the drop from another at the playhead.
 
 ### Separation: what to expect
 
@@ -100,12 +132,26 @@ PASS  key detection over all 24 keys        24/24
 PASS  tempo detection across 90–174 BPM     7/7
 PASS  beat grid at 120 BPM                  40 beats, mean interval 0.500s
 PASS  structure finds section boundaries
+PASS  plan moves most off-grid syllables    moved 17, mean shift 28ms
+PASS  syllables land closer to the beat     30.4ms → 8.1ms
+PASS  no clicks at segment joins
+PASS  already-aligned material is left alone
+PASS  material between subdivisions is not force-quantised
 ```
 
-The FLAC encoder is checked against libFLAC compiled to WASM, not against itself. The analysis
-checks caught a real bug: chroma computed from the 2048-point onset FFT cannot resolve semitones
-below ~500 Hz, and key detection was wrong on 17 of 24 keys until chroma got its own
-high-resolution pass.
+The FLAC encoder is checked against libFLAC compiled to WASM, not against itself. The alignment
+checks re-detect onsets in the *rendered* audio rather than inspecting the plan, so they measure
+what actually came out.
+
+Three real bugs these caught:
+
+- Chroma computed from the 2048-point onset FFT cannot resolve semitones below ~500 Hz. Key
+  detection was wrong on **17 of 24 keys** until chroma got its own high-resolution pass.
+- Overlap-add normalisation divided by the summed squared window, which tends to zero at signal
+  edges — amplifying the first samples of every stretched segment by ~1000×.
+- Alignment anchors that exceeded the local rate limit were dropped, which left those syllables to
+  be dragged *backwards* by the surrounding stretch. Clamping instead of dropping took the measured
+  error from 26 ms down to 8 ms.
 
 ## Architecture
 
@@ -119,7 +165,7 @@ src/
     workers/      analysis / separation / warp workers and their typed protocol
     engine.ts     the live AudioContext, transport, scheduling, automation, metering
     render.ts     offline render for export
-  remix/          sync, compatibility scoring, arrangement, Smart Remix, AI mix
+  remix/          sync, alignment, compatibility scoring, arrangement, Smart Remix, AI mix
   assistant/      natural-language instruction parser
   state/          project model, store with undo/redo, IndexedDB persistence
   ui/             React components
@@ -159,6 +205,9 @@ Export always waits for the rendered version — it never ships varispeed.
   separation targets are chosen per source so you only pay for stems you asked for.
 - The assistant is a rule-based parser, not a language model. It runs offline and is predictable,
   but it only understands the instruction shapes listed in its suggestions.
+- Smart Vocal Align depends on syllable onsets being visible in the stem. It works well on a clean
+  separated vocal and poorly on one with heavy instrumental bleed, since the bleed's transients look
+  like syllables.
 
 ## Rights and permitted use
 

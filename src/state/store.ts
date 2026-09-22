@@ -372,6 +372,53 @@ export const actions = {
     store.update('Delete clips', (p) => ({ ...p, clips: p.clips.filter((c) => !set.has(c.id)) }));
   },
 
+  /** Repeat a clip back to back, `times` copies in total. */
+  loopClip(id: string, times: number): void {
+    store.update('Loop clip', (p) => {
+      const clip = p.clips.find((c) => c.id === id);
+      if (!clip || times < 2) return p;
+      const copies: Clip[] = [];
+      for (let i = 1; i < times; i++) {
+        copies.push({ ...clip, id: newId('clip'), start: clip.start + clip.duration * i });
+      }
+      return { ...p, clips: [...p.clips, ...copies] };
+    });
+  },
+
+  /**
+   * Change a clip's speed while keeping its start fixed.
+   *
+   * `factor` multiplies playback speed: 0.5 is half-time, 2 is double-time.
+   */
+  setClipSpeed(id: string, factor: number): void {
+    store.update('Change clip speed', (p) => ({
+      ...p,
+      clips: p.clips.map((c) => {
+        if (c.id !== id) return c;
+        const sourceDuration = c.duration / c.stretch;
+        const stretch = 1 / factor;
+        return { ...c, stretch, duration: sourceDuration * stretch };
+      }),
+    }));
+  },
+
+  /** Paste clips at `at`, preserving their relative positions. */
+  pasteClips(clips: Clip[], at: number, trackFallback?: string): number {
+    if (clips.length === 0) return 0;
+    const earliest = Math.min(...clips.map((c) => c.start));
+    const project = store.getState().project;
+    const valid = clips.filter((c) => project.tracks.some((t) => t.id === c.trackId) || trackFallback);
+    if (valid.length === 0) return 0;
+    const pasted = valid.map((c) => ({
+      ...c,
+      id: newId('clip'),
+      trackId: project.tracks.some((t) => t.id === c.trackId) ? c.trackId : trackFallback!,
+      start: at + (c.start - earliest),
+    }));
+    store.update('Paste clips', (p) => ({ ...p, clips: [...p.clips, ...pasted] }));
+    return pasted.length;
+  },
+
   duplicateClip(id: string): void {
     store.update('Duplicate clip', (p) => {
       const clip = p.clips.find((c) => c.id === id);

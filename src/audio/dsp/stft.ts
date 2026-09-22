@@ -99,9 +99,14 @@ export function istft(spec: Spectrogram, length = spec.length): Float32Array {
     }
   }
 
+  // Clamp the denominator: at the signal edges only one frame overlaps, and
+  // dividing by that near-zero window sum would amplify the first and last
+  // samples by orders of magnitude.
+  let steady = 0;
+  for (let i = 0; i < length; i++) if (norm[i]! > steady) steady = norm[i]!;
+  const floor = Math.max(1e-8, steady * 0.08);
   for (let i = 0; i < length; i++) {
-    const n = norm[i]!;
-    if (n > 1e-8) out[i] = out[i]! / n;
+    if (norm[i]! > 1e-12) out[i] = out[i]! / Math.max(norm[i]!, floor);
   }
   return out;
 }

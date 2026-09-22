@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { engine } from '../audio/engine.ts';
 import { actions, store, useHistory, useProject } from '../state/store.ts';
+import type { Clip } from '../state/types.ts';
 import { lastProjectId, loadProject, startAutosave, type AutosaveState } from '../state/persist.ts';
+import { Arrangement } from './panels/Arrangement.tsx';
 import { Assistant } from './panels/Assistant.tsx';
 import { ExportDialog } from './panels/ExportDialog.tsx';
 import { Inspector } from './panels/Inspector.tsx';
@@ -28,6 +30,7 @@ export function App() {
   const [showExport, setShowExport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [metronome, setMetronome] = useState(false);
+  const [clipboard, setClipboard] = useState<Clip[]>([]);
   const [autosave, setAutosave] = useState<AutosaveState>('idle');
 
   useEngineSync(project);
@@ -90,8 +93,31 @@ export function App() {
       },
       l: () => actions.setLoop({ enabled: !store.getState().project.loop.enabled }),
       m: () => setMetronome((m) => !m),
+      'mod+c': () => {
+        const clips = store.getState().project.clips.filter((c) => selection.includes(c.id));
+        if (clips.length) {
+          setClipboard(clips.map((c) => ({ ...c })));
+          notify(`Copied ${clips.length} clip${clips.length === 1 ? '' : 's'}.`);
+        }
+      },
+      'mod+x': () => {
+        const clips = store.getState().project.clips.filter((c) => selection.includes(c.id));
+        if (clips.length) {
+          setClipboard(clips.map((c) => ({ ...c })));
+          actions.removeClips(selection);
+          setSelection([]);
+        }
+      },
+      'mod+v': () => {
+        if (clipboard.length === 0) return;
+        const first = store.getState().project.tracks[0]?.id;
+        const n = actions.pasteClips(clipboard, engine.state().position, first);
+        if (n > 0) notify(`Pasted ${n} clip${n === 1 ? '' : 's'} at the playhead.`, 'ok');
+      },
+      'mod+d': () => selection.forEach((id) => actions.duplicateClip(id)),
+      'mod+a': () => setSelection(store.getState().project.clips.map((c) => c.id)),
     }),
-    [selection],
+    [selection, clipboard],
   );
   useShortcuts(shortcuts);
 
@@ -156,6 +182,7 @@ export function App() {
         <SourcesPanel project={project} importer={importer} />
         <QuickRemix project={project} importer={importer} />
         <SmartRemix project={project} />
+        <Arrangement project={project} />
         <Versions project={project} />
         <Assistant project={project} />
       </aside>

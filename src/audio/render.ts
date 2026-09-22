@@ -164,7 +164,15 @@ export async function renderProject(
     }
     gain.gain.linearRampToValueAtTime(0, end);
 
-    node.start(start, clip.offset, clip.duration * rate);
+    const tape = clip.tapeStop ?? 0;
+    if (tape > 0.01 && clip.duration > tape) {
+      node.playbackRate.setValueAtTime(rate, end - tape);
+      node.playbackRate.linearRampToValueAtTime(rate * 0.02, end);
+      node.start(start, clip.offset, clip.duration * rate);
+      node.stop(end);
+    } else {
+      node.start(start, clip.offset, clip.duration * rate);
+    }
   }
 
   opts.onProgress?.({ value: 0.55, stage: 'Rendering audio' });

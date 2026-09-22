@@ -4,6 +4,7 @@ import { EFFECT_GROUPS, EFFECT_SPECS } from '../../audio/effects/definitions.ts'
 import { MASTERING_PRESETS, masterChainFor } from '../../audio/effects/mastering.ts';
 import { actions } from '../../state/store.ts';
 import { autoMix } from '../../remix/autoMix.ts';
+import { alignClipToGrid, describeAlignment } from '../../remix/align.ts';
 import { resyncClip } from '../../remix/sync.ts';
 import type {
   AutomationLane,
@@ -15,7 +16,7 @@ import type {
   Project,
   Track,
 } from '../../state/types.ts';
-import { Meter, Slider, gainToDb, notify } from '../components/primitives.tsx';
+import { Meter, Slider, Spinner, gainToDb, notify } from '../components/primitives.tsx';
 
 type Tab = 'mix' | 'clip' | 'fx' | 'auto' | 'master';
 
@@ -201,10 +202,24 @@ function TrackStrip({
 }
 
 function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
+  const [aligning, setAligning] = useState(false);
   if (!clip) return <div className="empty">Select a clip on the timeline.</div>;
   const source = project.sources.find((s) => s.id === clip.sourceId);
   const set = (patch: Partial<Clip>, commit = true) =>
     actions.updateClip(clip.id, patch, { history: commit });
+
+  const runAlign = async () => {
+    setAligning(true);
+    try {
+      const { plan, patch } = await alignClipToGrid(project, clip);
+      if (Object.keys(patch).length > 0) actions.updateClip(clip.id, patch);
+      notify(describeAlignment(plan), plan.moved > 0 ? 'ok' : 'info');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Alignment failed.', 'error');
+    } finally {
+      setAligning(false);
+    }
+  };
 
   return (
     <>
@@ -266,6 +281,20 @@ function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
       />
 
       <div className="row wrap" style={{ marginTop: 10 }}>
+        <button
+          className="primary"
+          onClick={() => void runAlign()}
+          disabled={aligning}
+          title="Nudge syllables onto the beat without quantising the phrasing"
+        >
+          {aligning ? (
+            <span className="row">
+              <Spinner /> Aligning…
+            </span>
+          ) : (
+            'Smart vocal align'
+          )}
+        </button>
         <button className={clip.reverse ? 'active' : ''} onClick={() => set({ reverse: !clip.reverse })}>
           Reverse
         </button>
@@ -284,6 +313,44 @@ function ClipTab({ project, clip }: { project: Project; clip: Clip | null }) {
         <button className="danger" onClick={() => actions.removeClip(clip.id)}>
           Delete
         </button>
+      </div>
+
+      <div className="row wrap" style={{ marginTop: 8 }}>
+        <span className="hint">Loop</span>
+        {[2, 4, 8].map((n) => (
+          <button key={n} onClick={() => actions.loopClip(clip.id, n)} title={`Repeat ${n} times back to back`}>
+            ×{n}
+          </button>
+        ))}
+        <span style={{ width: 10 }} />
+        <span className="hint">Speed</span>
+        <button onClick={() => actions.setClipSpeed(clip.id, 0.5)} title="Half-time">
+          ½×
+        </button>
+        <button onClick={() => actions.setClipSpeed(clip.id, 1)} title="Back to original speed">
+          1×
+        </button>
+        <button onClick={() => actions.setClipSpeed(clip.id, 2)} title="Double-time">
+          2×
+        </button>
+      </div>
+
+      <Slider
+        label="Tape stop"
+        value={clip.tapeStop ?? 0}
+        min={0}
+        max={Math.min(4, clip.duration)}
+        step={0.05}
+        unit="s"
+        format={(v) => (v < 0.02 ? 'off' : v.toFixed(2))}
+        onChange={(v) => set({ tapeStop: v }, false)}
+        onCommit={(v) => set({ tapeStop: v })}
+      />
+
+      <div className="hint" style={{ marginTop: 8 }}>
+        Smart vocal align finds syllable onsets and moves the ones that are slightly off the beat,
+        stretching the audio between them by a few percent. Syllables already close to the grid, and
+        ones sitting deliberately between subdivisions, are left alone — it is not a quantiser.
       </div>
 
       {(clip.stretch !== 1 || clip.pitch !== 0) && (

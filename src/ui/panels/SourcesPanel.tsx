@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ACCEPT_ATTRIBUTE, filesFromDataTransfer, isSupportedFile } from '../../audio/import.ts';
 import { audioAssets } from '../../audio/assets.ts';
 import { DEFAULT_TARGETS, MODEL_ONLY_STEMS, STEM_META, type StemId } from '../../audio/separation/types.ts';
@@ -8,7 +8,8 @@ import { compatibilityOf, scoreLabel } from '../../remix/compatibility.ts';
 import { syncWarnings } from '../../remix/sync.ts';
 import type { Project, Source } from '../../state/types.ts';
 import { Panel, Spinner, formatTime, notify } from '../components/primitives.tsx';
-import { placeStem, useImporter } from '../hooks.ts';
+import { placeSection, placeStem, useImporter } from '../hooks.ts';
+import { engine } from '../../audio/engine.ts';
 
 const DETAILED_TARGETS: StemId[] = [
   'lead-vocals',
@@ -102,6 +103,62 @@ export function SourcesPanel({ project, importer }: Props) {
   );
 }
 
+/**
+ * Per-section picker: take just the chorus vocal from one song and the drop
+ * from another, dropping each at the playhead.
+ */
+function SectionPicker({ source, project }: { source: Source; project: Project }) {
+  const [stem, setStem] = useState<StemId | 'full'>('lead-vocals');
+  const sections = source.analysis?.sections ?? [];
+  const available = (Object.keys(source.stems) as StemId[]).filter((id) => source.stems[id]?.ready);
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div className="row" style={{ marginBottom: 6 }}>
+        <span className="hint">Add section as</span>
+        <select
+          className="grow"
+          value={stem}
+          onChange={(e) => setStem(e.target.value as StemId | 'full')}
+          aria-label="Which stem to take from the section"
+        >
+          <option value="full">Full mix</option>
+          {available.map((id) => (
+            <option key={id} value={id}>
+              {STEM_META[id].label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {sections.map((section) => (
+        <div className="stem-row" key={section.id}>
+          <span
+            className="dot"
+            style={{ background: `hsl(${source.hue} 60% ${35 + section.energy * 30}%)` }}
+          />
+          <span className="name truncate">
+            {section.label}
+            <span className="hint"> · {section.bars} bars</span>
+          </span>
+          <span className="hint mono">{formatTime(section.startTime)}</span>
+          <button
+            className="ghost"
+            title={`Add this ${section.label} at the playhead`}
+            onClick={() => {
+              if (placeSection(project, source, stem, section, engine.state().position)) {
+                notify(`Added ${source.name} ${section.label} at the playhead.`, 'ok');
+              }
+            }}
+          >
+            +
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SourceCard({
   source,
   index,
@@ -117,8 +174,18 @@ function SourceCard({
   onToggle: () => void;
   importer: ReturnType<typeof useImporter>;
 }) {
+  const [previewing, setPreviewing] = useState<string | null>(null);
   const analysis = source.analysis;
   const stems = Object.values(source.stems).filter((s) => s?.ready);
+
+  // Stop the audition when this card collapses, so nothing keeps playing
+  // invisibly after the user moves on.
+  useEffect(() => {
+    if (!open && previewing) {
+      engine.stopPreview();
+      setPreviewing(null);
+    }
+  }, [open, previewing]);
   const warnings = syncWarnings(source, project);
 
   const reference = project.sources.find((s) => s.id !== source.id && s.analysis);
@@ -163,14 +230,8 @@ function SourceCard({
 
       {open && (
         <div className="stems">
-          {analysis && (
-            <div className="hint" style={{ marginBottom: 8 }}>
-              Structure:{' '}
-              {analysis.sections
-                .map((s) => s.label)
-                .filter((label, i, arr) => label !== arr[i - 1])
-                .join(' → ')}
-            </div>
+          {analysis && analysis.sections.length > 0 && (
+            <SectionPicker source={source} project={project} />
           )}
 
           {compat && (
@@ -234,6 +295,23 @@ function SourceCard({
                   <div className="stem-row" key={id}>
                     <span className="dot" style={{ background: `hsl(${meta.hue} 70% 55%)` }} />
                     <span className="name truncate">{meta.label}</span>
+                    <button
+                      className={`ghost ${previewing === state.assetId ? 'active' : ''}`}
+                      title={previewing === state.assetId ? 'Stop' : 'Listen to this stem on its own'}
+                      onClick={() => {
+                        if (previewing === state.assetId) {
+                          engine.stopPreview();
+                          setPreviewing(null);
+                        } else {
+                          setPreviewing(state.assetId);
+                          void engine.previewAsset(state.assetId, {
+                            onEnd: () => setPreviewing(null),
+                          });
+                        }
+                      }}
+                    >
+                      {previewing === state.assetId ? '■' : '▶'}
+                    </button>
                     <button
                       className="ghost"
                       title="Place on the timeline"

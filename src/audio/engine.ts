@@ -66,6 +66,9 @@ export class RemixEngine {
    * forever.
    */
   private snapshot: TransportState = { playing: false, position: 0, duration: 0 };
+  private previewNode: AudioBufferSourceNode | null = null;
+  private previewAssetId: string | null = null;
+  private previewEnded: (() => void) | null = null;
 
   get sampleRate(): number {
     return this.ctx?.sampleRate ?? 48000;
@@ -280,7 +283,19 @@ export class RemixEngine {
       const startAt = when + (startInTimeline - from);
 
       applyClipGain(gain, clip, startAt, skip, playDuration);
-      node.start(startAt, offsetSec, playDuration * rate);
+      const tape = clip.tapeStop ?? 0;
+      if (tape > 0.01 && playDuration > tape) {
+        // Ramp the rate to a standstill over the tail. The node has to be
+        // stopped explicitly too: slowing down means it would otherwise take
+        // longer than its slot to consume the scheduled buffer duration.
+        const stopFrom = startAt + playDuration - tape;
+        node.playbackRate.setValueAtTime(rate, stopFrom);
+        node.playbackRate.linearRampToValueAtTime(rate * 0.02, startAt + playDuration);
+        node.start(startAt, offsetSec, playDuration * rate);
+        node.stop(startAt + playDuration);
+      } else {
+        node.start(startAt, offsetSec, playDuration * rate);
+      }
       node.onended = () => {
         gain.disconnect();
         node.disconnect();
@@ -335,6 +350,7 @@ export class RemixEngine {
     const ctx = this.ctx!;
     this.stopSources();
 
+    this.stopPreview();
     const start = from ?? this.position();
     this.startOffset = start;
     this.startedAt = ctx.currentTime + LOOKAHEAD;
@@ -453,6 +469,69 @@ export class RemixEngine {
     }
   }
 
+  /**
+   * Audition an asset on its own, outside the arrangement.
+   *
+   * Routed straight to the destination rather than through the mix bus, so a
+   * stem can be checked without solo state, track effects or the master chain
+   * colouring what you hear.
+   */
+  async previewAsset(
+    assetId: string,
+    opts: { from?: number; onEnd?: () => void } = {},
+  ): Promise<void> {
+    await this.init();
+    this.stopPreview();
+    const ctx = this.ctx;
+    const asset = audioAssets.get(assetId);
+    if (!ctx || !asset) return;
+
+    const node = ctx.createBufferSource();
+    node.buffer = toAudioBuffer(ctx, asset);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.01);
+    node.connect(gain).connect(ctx.destination);
+
+    node.onended = () => {
+      gain.disconnect();
+      node.disconnect();
+      if (this.previewNode === node) {
+        this.previewNode = null;
+        this.previewAssetId = null;
+        this.previewEnded?.();
+        this.previewEnded = null;
+      }
+    };
+
+    this.previewNode = node;
+    this.previewAssetId = assetId;
+    this.previewEnded = opts.onEnd ?? null;
+    node.start(ctx.currentTime, Math.max(0, opts.from ?? 0));
+  }
+
+  stopPreview(): void {
+    const node = this.previewNode;
+    this.previewNode = null;
+    this.previewAssetId = null;
+    const ended = this.previewEnded;
+    this.previewEnded = null;
+    if (node) {
+      node.onended = null;
+      try {
+        node.stop();
+      } catch {
+        // Already finished.
+      }
+      node.disconnect();
+    }
+    ended?.();
+  }
+
+  previewingAsset(): string | null {
+    return this.previewAssetId;
+  }
+
   /** Peak level in [0,1] for a track, for the mixer meters. */
   trackLevel(trackId: string): number {
     const nodes = this.tracks.get(trackId);
@@ -466,6 +545,7 @@ export class RemixEngine {
 
   dispose(): void {
     this.stop();
+    this.stopPreview();
     for (const nodes of this.tracks.values()) nodes.chain.dispose();
     this.tracks.clear();
     this.masterChain?.dispose();

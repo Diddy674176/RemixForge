@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "verify:codecs": "node --experimental-strip-types scripts/verify-codecs.mjs",
     "verify:analysis": "node --experimental-strip-types scripts/verify-analysis.mjs",
-    "verify": "npm run verify:codecs && npm run verify:analysis"
+    "verify": "npm run verify:codecs && npm run verify:analysis && npm run verify:align",
+    "verify:align": "node --experimental-strip-types scripts/verify-align.mjs"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",

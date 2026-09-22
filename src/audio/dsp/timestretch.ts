@@ -160,9 +160,15 @@ export function timeStretch(x: Float32Array, factor: number, opts: StretchOption
     }
   }
 
+  // Normalise by the summed squared window. At the very edges only one frame
+  // contributes, so the denominator tends to zero and dividing by it amplifies
+  // the first samples enormously. Clamping to a fraction of the steady-state
+  // value turns that into a short fade instead of an explosion.
+  let steady = 0;
+  for (let i = 0; i < outLen; i++) if (norm[i]! > steady) steady = norm[i]!;
+  const floor = Math.max(1e-8, steady * 0.08);
   for (let i = 0; i < outLen; i++) {
-    const n = norm[i]!;
-    if (n > 1e-8) out[i] = out[i]! / n;
+    if (norm[i]! > 1e-12) out[i] = out[i]! / Math.max(norm[i]!, floor);
   }
 
   const target = Math.round(x.length * factor);

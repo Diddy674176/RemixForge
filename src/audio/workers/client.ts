@@ -6,6 +6,8 @@ import type {
   SeparationWorkerResponse,
 } from './protocol.ts';
 import type { StemId } from '../separation/types.ts';
+import type { AlignRequest, AlignResponse } from './align.worker.ts';
+import type { AlignPlan } from '../dsp/vocalAlign.ts';
 
 export interface JobProgress {
   value: number;
@@ -116,4 +118,52 @@ export function separateAudio(
       if (!settled) worker.terminate();
     },
   };
+}
+
+export interface AlignJobResult {
+  channels: Float32Array[];
+  plan: AlignPlan;
+}
+
+/**
+ * Run Smart Vocal Align on a clip's audio.
+ *
+ * `beats` must already be expressed in the audio's own time base — the caller
+ * converts the project grid through the clip's offset and stretch.
+ */
+export function alignAudio(
+  channels: Float32Array[],
+  sampleRate: number,
+  beats: number[],
+  opts: { divisions?: number; tolerance?: number } = {},
+): Promise<AlignJobResult> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./align.worker.ts', import.meta.url), { type: 'module' });
+    const id = nextId();
+
+    worker.onmessage = (e: MessageEvent<AlignResponse>) => {
+      const msg = e.data;
+      if (msg.id !== id) return;
+      worker.terminate();
+      if (msg.kind === 'done') {
+        resolve({ channels: msg.channels.map((c) => new Float32Array(c)), plan: msg.plan });
+      } else {
+        reject(new Error(msg.message));
+      }
+    };
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(new Error(e.message || 'Alignment worker failed'));
+    };
+
+    const payload: AlignRequest = {
+      id,
+      channels: copyChannels(channels),
+      sampleRate,
+      beats,
+      divisions: opts.divisions ?? 4,
+      tolerance: opts.tolerance ?? 0.35,
+    };
+    worker.postMessage(payload, payload.channels);
+  });
 }

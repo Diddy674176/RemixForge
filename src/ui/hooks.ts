@@ -6,7 +6,9 @@ import { analyseAudio, separateAudio } from '../audio/workers/client.ts';
 import { DEFAULT_TARGETS, STEM_META, type StemId } from '../audio/separation/types.ts';
 import { getModelBackendUrl, modelEngine } from '../audio/separation/index.ts';
 import { actions, newId, store, trackForStem } from '../state/store.ts';
-import { buildFullClip } from '../remix/build.ts';
+import { buildClip, buildFullClip } from '../remix/build.ts';
+import { snapTime } from '../remix/sync.ts';
+import type { Section } from '../audio/analysis/structure.ts';
 import type { Project, Source } from '../state/types.ts';
 import { notify } from './components/primitives.tsx';
 
@@ -198,6 +200,37 @@ export function placeStem(project: Project, source: Source, stem: StemId | 'full
       `${source.name} has no ${stem === 'full' ? 'audio' : STEM_META[stem].label.toLowerCase()} available yet.`,
       'error',
     );
+    return false;
+  }
+  actions.addClip(clip);
+  return true;
+}
+
+/**
+ * Place one detected section of a source on the timeline.
+ *
+ * Unlike `placeStem` this appends rather than replacing, because sections are
+ * how an arrangement is assembled piece by piece.
+ */
+export function placeSection(
+  project: Project,
+  source: Source,
+  stem: StemId | 'full',
+  section: Section,
+  at: number,
+): boolean {
+  const track = trackForStem(project, stem);
+  const label = stem === 'full' ? 'Full mix' : STEM_META[stem].label;
+  const clip = buildClip(
+    store.getState().project,
+    source,
+    stem,
+    track.id,
+    { from: section.startTime, to: section.endTime, at: snapTime(project, at) },
+    { name: `${source.name} — ${section.label} ${label.toLowerCase()}` },
+  );
+  if (!clip) {
+    notify(`${source.name} has no ${label.toLowerCase()} separated yet.`, 'error');
     return false;
   }
   actions.addClip(clip);

@@ -113,6 +113,7 @@ export function Timeline({ project, selection, onSelect, selectedTrackId, onSele
             zoom={zoom}
             width={width}
             duration={duration}
+            selection={selectionSet}
             onSeek={seekFromEvent}
           />
 
@@ -149,17 +150,24 @@ export function Timeline({ project, selection, onSelect, selectedTrackId, onSele
   );
 }
 
+function hasSections(project: Project, sourceId: string): boolean {
+  const source = project.sources.find((s) => s.id === sourceId);
+  return (source?.analysis?.sections.length ?? 0) > 0;
+}
+
 function Ruler({
   project,
   zoom,
   width,
   duration,
+  selection,
   onSeek,
 }: {
   project: Project;
   zoom: number;
   width: number;
   duration: number;
+  selection: Set<string>;
   onSeek: (e: React.PointerEvent<HTMLDivElement>) => void;
 }) {
   const beat = 60 / project.bpm;
@@ -177,10 +185,11 @@ function Ruler({
     }
   }
 
-  const sectionClip = project.clips.find((c) => {
-    const source = project.sources.find((s) => s.id === c.sourceId);
-    return (source?.analysis?.sections.length ?? 0) > 0;
-  });
+  // Show the section map of whichever clip is selected, so picking a clip
+  // reveals where that song's verses and choruses fall on the timeline.
+  const sectionClip =
+    project.clips.find((c) => selection.has(c.id) && hasSections(project, c.sourceId)) ??
+    project.clips.find((c) => hasSections(project, c.sourceId));
   const source = project.sources.find((s) => s.id === sectionClip?.sourceId);
 
   return (

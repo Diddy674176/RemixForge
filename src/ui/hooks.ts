@@ -107,6 +107,10 @@ export function useImporter() {
       if (files.length === 0) return;
       setBusy(true);
       try {
+        // Import follows a user gesture, so the context can be created now.
+        // Decoding at the context's real rate avoids resampling every buffer
+        // at playback time.
+        await engine.init().catch(() => undefined);
         for (const file of files) {
           const project = store.getState().project;
           const index = project.sources.length;

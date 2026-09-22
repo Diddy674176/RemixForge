@@ -150,15 +150,16 @@ export class RemixEngine {
    */
   sync(project: Project): void {
     this.project = project;
-    if (!this.ctx || !this.master) return;
-
-    const key = graphKey(project);
-    if (key !== this.lastGraphKey) {
-      this.rebuildGraph(project);
-      this.lastGraphKey = key;
+    // The graph only exists once the context does, but the transport still
+    // needs the new project length — the timeline shows it before first play.
+    if (this.ctx && this.master) {
+      const key = graphKey(project);
+      if (key !== this.lastGraphKey) {
+        this.rebuildGraph(project);
+        this.lastGraphKey = key;
+      }
+      this.applyValues(project);
     }
-    this.applyValues(project);
-    // The clip set may have changed the project length.
     this.emit();
   }
 
